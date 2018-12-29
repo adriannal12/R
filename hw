@@ -1,0 +1,255 @@
+###import danych###
+ACC= read.csv(file ="ukwypadki.csv", sep=";",header=TRUE)
+### wykorzystane biblioteki ###
+library(maxLik)
+library(texreg)
+############1st model############
+#### Zmienne objasniajace i zm.objasniana ####
+z1=ACC$rt_round
+z2=ACC$rt_slipr
+z3=ACC$rural
+z4=ACC$wc_rain
+z5=ACC$lc_darkness
+z6=ACC$sc_signal
+z7=ACC$sc_surfacedef
+vv=data.frame(z1,z2,z3,z4,z5,z6,z7)
+y=ACC$Number_of_Vehicles
+
+
+#(-1-)###Log-Likehood function####
+LL=function(parametry) {
+  #beta
+  B0 = parametry[1]
+  B1 = parametry[2]
+  B2 = parametry[3]
+  B3 = parametry[4]
+  B4 = parametry[5]
+  B5 = parametry[6]
+  B6 = parametry[7]
+  B7 = parametry[8]  
+  #vars
+  z1=ACC$rt_round
+  z2=ACC$rt_slipr
+  z3=ACC$rural
+  z4=ACC$wc_rain
+  z5=ACC$lc_darkness
+  z6=ACC$sc_signal
+  z7=ACC$sc_surfacedef
+  #lambda:
+  xb = B0+B1*z1+B2*z2+B3*z3+B4*z4+B5*z5+B6*z6+B7*z7 
+  lambda = exp(xb)
+  #log-likelihood
+  return(-sum(lambda)+sum(y*log(lambda))-sum(log(1-exp(-lambda))))
+}
+
+#(-2-)###GRADIENT function####
+gradient=function(parametry){
+  #beta
+  B0 = parametry[1]
+  B1 = parametry[2]
+  B2 = parametry[3]
+  B3 = parametry[4]
+  B4 = parametry[5]
+  B5 = parametry[6]
+  B6 = parametry[7]
+  B7 = parametry[8]  
+  #lambda
+  lambd=z1*B1+B0+B2*z2+B5*z5+B4*z4+z3*B3+B7*z7+B6*z6
+  #declare gr as vector
+  gr=rep(0,8)
+  #gradient function
+  gr[1]=sum(y/(lambd))-sum(exp(-lambd)/(1-exp(-lambd)))-1
+  for (i in 2:8){
+    gr[i]=sum(vv[,i-1]*y/(lambd))-sum((vv[,i-1]*exp(-lambd))/(1-exp(-lambd)))-sum(vv[,i-1])  
+  }
+  gr
+  return(gr)
+}
+#(-3-)###HESSJAN function####
+hessjan= function(parametry){
+  #beta
+  B0 = parametry[1]
+  B1 = parametry[2]
+  B2 = parametry[3]
+  B3 = parametry[4]
+  B4 = parametry[5]
+  B5 = parametry[6]
+  B6 = parametry[7]
+  B7 = parametry[8]  
+  #lambda
+  lambd=z1*B1+B0+B2*z2+B5*z5+B4*z4+z3*B3+B7*z7+B6*z6
+  #declare h as matrix
+  h=matrix(nrow=8, ncol=8)
+  #hessjan function
+  #1.col from 2. to 8. row
+  for (k in 2:8){
+    h[k,1]=sum(vv[,k-1]*exp(-lambd)/(1-exp(-lambd)))+sum(vv[,k-1]*exp(-2*(lambd))/
+                                     (1-exp(-lambd))^2)-sum(vv[,k-1]*y/(lambd)^2)  
+  } 
+  h
+  ##1.row##
+  #d2LL/dB0dB0
+  h[1,1]=sum(exp(-lambd)/(1-exp(-lambd)))+sum(exp(-2*(lambd))/
+                          (1-exp(-lambd))^2)-sum(y/(lambd)^2)
+  #d2LL/dB0dB1
+  h[1,2]=-sum(z1*y/(lambd)^2)+sum(z1*exp(-lambd)/(1-exp(-lambd)))+
+    sum(z1*exp(-2*(lambd))/(1-exp(-lambd))^2)
+  #3. to 8. col
+  for (j in 3:8){
+    h[1,j]=sum(vv[,j-1]*exp(-lambd)/(1-exp(-lambd)))+sum(vv[,j-1]*exp(-2*(lambd))/
+                                    (1-exp(-lambd))^2)-sum(vv[,j-1]*y/(lambd)^2)  
+  } 
+  h
+  ##2. to 8. row##
+  for(q in 2:8){ 
+    for (l in 2:8){
+      h[q,l]=sum(vv[,q-1]*vv[,l-1]*exp(-lambd)/(1-exp(-lambd)))+sum(vv[,q-1]*vv[,l-1]*exp(-2*(lambd))/
+            (1-exp(-lambd))^2)-sum(vv[,q-1]*vv[,l-1]*y/(lambd)^2)
+    } 
+  }
+  h
+  return(h)
+}
+
+####1st model estimation####
+max_beta <- maxLik(logLik=LL,start=c(int.=0.1,rt_round=0.1,rt_slipr=0.1,rural=0.1,wc_rain=0.1,lc_darkness=0.1,sc_signal=0.1,sc_surfacedef=0.1))
+summary(max_beta)
+m1=summary(max_beta)
+aic1=AIC(max_beta)
+
+############2nd model############
+#### Zmienne objasniajace i zm.objasniana ####
+z1=ACC$rt_round
+z3=ACC$rural
+z4=ACC$wc_rain
+z5=ACC$lc_darkness
+z6=ACC$sc_signal
+z7=ACC$sc_surfacedef
+vv=data.frame(z1,z3,z4,z5,z6,z7)
+y=ACC$Number_of_Vehicles
+#(-1.1-)###Log-Likehood function####
+LL2=function(parametry) {
+  #bety
+  B0 = parametry[1]
+  B1 = parametry[2]
+  B3 = parametry[3]
+  B4 = parametry[4]
+  B5 = parametry[5]
+  B6 = parametry[6]
+  B7 = parametry[7]  
+  #lambda:
+  xb = B0+B1*z1+B3*z3+B4*z4+B5*z5+B6*z6+B7*z7 
+  lambda = exp(xb)
+  #logarytm f.wiarygodnosci
+  return(-sum(lambda)+sum(y*log(lambda))-sum(log(1-exp(-lambda))))
+}
+
+#(-2.1-)###GRADIENT function####
+gradient=function(parametry){
+  #beta
+  B0 = parametry[1]
+  B1 = parametry[2]
+  B3 = parametry[3]
+  B4 = parametry[4]
+  B5 = parametry[5]
+  B6 = parametry[6]
+  B7 = parametry[7]  
+  #lambda
+  lambd=z1*B1+B0+B5*z5+B4*z4+z3*B3+B7*z7+B6*z6
+  #declare gr as vector
+  gr=rep(0,7)
+  #gradient function
+  gr[1]=sum(y/(lambd))-sum(exp(-lambd)/(1-exp(-lambd)))-1
+  for (i in 2:7){
+    gr[i]=sum(vv[,i-1]*y/(lambd))-sum((vv[,i-1]*exp(-lambd))/(1-exp(-lambd)))-sum(vv[,i-1])  
+  }
+  gr
+  return(gr)
+}
+#(-3.1-)###HESSJAN function####
+hessjan= function(parametry){
+  B0 = parametry[1]
+  B1 = parametry[2]
+  B3 = parametry[3]
+  B4 = parametry[4]
+  B5 = parametry[5]
+  B6 = parametry[6]
+  B7 = parametry[7] 
+  #lambda
+  lambd=z1*B1+B0+B5*z5+B4*z4+z3*B3+B7*z7+B6*z6
+  #zadeklarowanie hessj. jako matrix
+  h=matrix(nrow=7, ncol=7)
+  #funkcja hessjan
+  #1.col from 2nd row
+  for (k in 2:7){
+    h[k,1]=sum(vv[,k-1]*exp(-lambd)/(1-exp(-lambd)))+sum(vv[,k-1]*exp(-2*(lambd))/
+                                                           (1-exp(-lambd))^2)-sum(vv[,k-1]*y/(lambd)^2)  
+  } 
+  h
+  ##1.row##
+  #d2LL/dB0dB0
+  h[1,1]=sum(exp(-lambd)/(1-exp(-lambd)))+sum(exp(-2*(lambd))/
+                                                (1-exp(-lambd))^2)-sum(y/(lambd)^2)
+  #d2LL/dB0dB1
+  h[1,2]=-sum(z1*y/(lambd)^2)+sum(z1*exp(-lambd)/(1-exp(-lambd)))+
+    sum(z1*exp(-2*(lambd))/(1-exp(-lambd))^2)
+  #3 to 7 col
+  for (j in 3:7){
+    h[1,j]=sum(vv[,j-1]*exp(-lambd)/(1-exp(-lambd)))+sum(vv[,j-1]*exp(-2*(lambd))/
+                                                           (1-exp(-lambd))^2)-sum(vv[,j-1]*y/(lambd)^2)  
+  } 
+  h
+  ##2. to 7. row##
+  
+  for(q in 2:7){ 
+    for (l in 2:7){
+      h[q,l]=sum(vv[,q-1]*vv[,l-1]*exp(-lambd)/(1-exp(-lambd)))+sum(vv[,q-1]*vv[,l-1]*exp(-2*(lambd))/
+                                                                      (1-exp(-lambd))^2)-sum(vv[,q-1]*vv[,l-1]*y/(lambd)^2)
+    } 
+  }
+  h
+  return(h)
+  
+}
+
+
+####2nd model estimation####
+max_beta2 <- maxLik(logLik=LL2,start=c(int.=0.1,rt_round=0.1,rural=0.1,wc_rain=0.1,
+                                  lc_darkness=0.1,sc_signal=0.1,sc_surfacedef=0.1))
+summary(max_beta2)
+m2=summary(max_beta2)
+aic2=AIC(max_beta2)
+
+###################
+#PUBLICATION TABLE#
+###################
+#m1 table
+m1_est=(as.table(m1$estimate))
+#m2 table
+m2_est=(as.table(m2$estimate))
+###
+#aic
+aic1=AIC(max_beta1)
+aic2=AIC(max_beta2)
+#log-likelihood
+llik1=m1$loglik
+llik2=m2$loglik
+#num.obs
+n=length(ACC[,1])
+#LR test with h0:B2=0
+LRstat= 2*(llik1-llik2)
+print(LRstat)
+#kwantyl rozkladu chi-kwadrat z 1d.f. dla p=0.95
+chi2_1=qchisq(p=0.95,df=1)
+#brak podst do odrzucenia h0:B0=0
+
+#create texreg objects
+library(texreg)
+m2_tr=createTexreg(coef.names =row.names(m2_est),coef=m2_est[,1],m2_est[,2],pvalues =m2_est[,4],
+                   gof.names = c("AIC","Log Likehood","Num. obs.","LR chi2(1)", "chi2(1)" ),
+                   gof=c(aic1,llik1,n,LRstat,chi2_1) ,gof.decimal=c(F,F,F,T,T))
+m1_tr=createTexreg(coef.names =row.names(m1_est),coef=m1_est[,1],m1_est[,2],pvalues =m1_est[,4],
+                   gof.names = c("AIC","Log Likehood","Num. obs."),gof=c(aic2,llik2,n),
+                   gof.decimal=c(F,F,F) )
+#publication table with 2 models#
+screenreg(list(m1_tr,m2_tr),file=NULL,stars=c(0.01,0.05),custom.model.names = c("Tr.Poisson 1", "Tr.Poisson 2"),digits=6)
